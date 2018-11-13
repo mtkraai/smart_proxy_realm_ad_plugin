@@ -101,7 +101,25 @@ module Proxy::AdRealm
       enroll.set_host_fqdn(hostfqdn)
       enroll.set_domain_ou(@ou) if @ou
       enroll.set_computer_password(password)
-      enroll.join
+      begin
+        enroll.join
+        return true
+      rescue RuntimeError => ex
+        raise ex unless ex.message =~ /Authentication error/
+        for i in 1..100
+          sleep(0.3)
+          begin
+            if enroll.respond_to? :update
+              enroll.update
+            else
+              enroll.password
+            end
+            return true
+          rescue RuntimeError => ex
+            raise ex unless i < 99 and ex.message =~ /Authentication error/
+          end
+        end
+      end
     end
 
     def generate_password
